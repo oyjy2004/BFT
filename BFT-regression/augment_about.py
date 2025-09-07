@@ -1,0 +1,460 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import pickle
+import os
+import argparse
+from utils.EA import *
+from utils.getdata import *
+from utils.fix_seed import *
+from utils.load_dataAuged import *
+from utils.regression_about import *
+
+
+def test_BNadapt(base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    base_model = base_model.cuda()
+    regression_model = regression_model.cuda()
+    base_model.eval()
+    regression_model.eval()
+    aug_dir = ["identity"]
+    all_output = {}
+    data_auged_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/augmented_data/' + args.data + '/s' + str(args.testID)
+    for aug_way in aug_dir:
+        X_test, labels_test = load_aug(data_auged_dir, aug_way)
+
+        labels_test = labels_test.squeeze()
+        data_test = torch.utils.data.TensorDataset(X_test, labels_test)
+        loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, shuffle=False, drop_last=False)
+
+        with torch.no_grad():
+            iter_test = iter(loader_test)
+            for i in range(len(loader_test)):
+                base_model.eval()
+                regression_model.eval()
+                data = next(iter_test)
+                inputs = data[0]
+                labels = data[1]
+                inputs = inputs.cuda()
+
+                if i == 0:    data_cum = inputs
+                else:    data_cum = torch.cat((data_cum, inputs), 0)
+
+                if i == 0:  all_label = labels.float()
+                else:       all_label = torch.cat((all_label, labels.float()), 0)
+
+                outputs = regression_model(base_model(inputs)).view(-1)
+
+                if i == 0:
+                    all_output[aug_way] = outputs.float().cpu()                          
+                else:
+                    all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
+
+                if aug_way == 'identity':
+                    base_model.train()
+                    regression_model.train()
+                    if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
+                        batch_test = data_cum[i - test_batch + 1: i + 1]
+                        batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+                        batch_test = batch_test.cuda()
+                        _ = base_model(batch_test)
+
+    for aug_way in aug_dir:
+        this_outputs = all_output[aug_way]   
+        this_outputs = this_outputs.cuda()
+        cc, rmse, mae = regression_metrics(all_label, this_outputs)
+
+        print('BN-adapt: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+
+
+def test_augment(base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    base_model = base_model.cuda()
+    regression_model = regression_model.cuda()
+    base_model.eval()
+    regression_model.eval()
+
+    aug_dir = [ "identity", "noise",
+                "mult_0.9", "mult_1.1", "mult_1.2",
+                "freq_high", "freq_low",
+                "slide_1", "slide_2", "slide_3", "slide_4", "slide_5" ]
+    # aug_dir = ["identity"]
+    all_output = {}
+    data_auged_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/augmented_data/' + args.data + '/s' + str(args.testID)
+    for aug_way in aug_dir:
+        X_test, labels_test = load_aug(data_auged_dir, aug_way)
+
+        labels_test = labels_test.squeeze()
+        data_test = torch.utils.data.TensorDataset(X_test, labels_test)
+        loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, shuffle=False, drop_last=False)
+
+        with torch.no_grad():
+            iter_test = iter(loader_test)
+            for i in range(len(loader_test)):
+                base_model.eval()
+                regression_model.eval()
+                data = next(iter_test)
+                inputs = data[0]
+                labels = data[1]
+                inputs = inputs.cuda()
+
+                # if i == 0:    data_cum = inputs
+                # else:    data_cum = torch.cat((data_cum, inputs), 0)
+
+                if i == 0:  all_label = labels.float()
+                else:       all_label = torch.cat((all_label, labels.float()), 0)
+
+                outputs = regression_model(base_model(inputs)).view(-1)
+
+                if i == 0:
+                    all_output[aug_way] = outputs.float().cpu()                          
+                else:
+                    all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
+
+                # if aug_way == 'identity':
+                #     base_model.train()
+                #     regression_model.train()
+                #     if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
+                #         batch_test = data_cum[i - test_batch + 1: i + 1]
+                #         batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+                #         batch_test = batch_test.cuda()
+                #         _ = base_model(batch_test)
+
+    for aug_way in aug_dir:
+        this_outputs = all_output[aug_way]   
+        this_outputs = this_outputs.cuda()
+        cc, rmse, mae = regression_metrics(all_label, this_outputs)
+
+        if aug_way == aug_dir[1]:
+            output_tensor = this_outputs.float().cpu().unsqueeze(0)
+        elif aug_way != aug_dir[0]:
+            output_tensor = torch.cat((output_tensor, this_outputs.float().cpu().unsqueeze(0)), dim=0)
+
+        print(aug_way + ': ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+
+    mean_output = output_tensor.mean(dim=0)
+    mean_output = mean_output.cuda()
+    cc, rmse, mae = regression_metrics(all_label, mean_output)
+
+    print('Augment Avg: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+        
+    
+def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    aug_names = [
+        "identity", "noise",
+        "mult_0.9", "mult_1.1", "mult_1.2",
+        "freq_high", "freq_low",
+        "slide_1", "slide_2", "slide_3", "slide_4", "slide_5"
+    ]
+    data_root = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/augmented_data/" + args.data
+
+    test_id = args.testID
+    subject_ids = [test_id] 
+
+    aug_dataset = AugmentedDataset(data_root, subject_ids, aug_names)
+    loader_test = torch.utils.data.DataLoader(
+        aug_dataset, batch_size=1, shuffle=False, drop_last=False
+    )
+
+    model_loss.eval()
+    iter_test = iter(loader_test)
+    # print(len(loader_test))
+    with torch.no_grad():
+        for i in range(len(loader_test)):
+            base_model.eval()
+            regression_model.eval()
+            # [12][2]
+            data = next(iter_test)
+
+            # # [12][2]
+            # for i, item in enumerate(data):
+            #     print(f"[{i}] type: {type(item)}")
+            #     for j, itemm in enumerate(item):
+            #         print(f"\t[{j}] type: {type(itemm)}")
+            #         print("\t", itemm.shape)
+            # exit()
+
+            trans_traininputs = []
+            for j in range(len(data)):
+                trans_traininputs.append((data[j][0].cuda(), data[j][1].cuda()))
+
+            if i == 0:    data_cum = data[0][0]
+            else:    data_cum = torch.cat((data_cum, data[0][0]), 0)
+
+            x_aug_list = trans_traininputs
+            labels = data[0][1].cuda()
+
+            pred_losses = []
+            for j in range(len(x_aug_list)):
+                x, _ = x_aug_list[j]
+                x = base_model(x)
+                pred_losses.append(model_loss(x))
+
+            pred_losses = torch.stack(pred_losses).squeeze()
+            pred_losses = F.softmax(-pred_losses, dim=0)
+
+            if i == 0:
+                all_pred_losses = pred_losses.unsqueeze(0)
+            else:
+                all_pred_losses = torch.cat([all_pred_losses, pred_losses.unsqueeze(0)], dim=0)
+
+            predicted_probs = all_pred_losses.mean(dim=0)
+            topk_values, topk_indices = torch.topk(predicted_probs, k=6, largest=True)
+            # print(topk_indices)
+            the_output = []
+            for k in topk_indices:
+                x, y = x_aug_list[k]
+                target_output = regression_model(base_model(x)).view(-1)
+                target_output = target_output.unsqueeze(0)
+                the_output.append(target_output)
+            # print(the_output)
+            mean_output = torch.mean(torch.stack(the_output), dim=0)
+
+            if i == 0:
+                all_output = mean_output.float().cpu()
+                all_label = labels.float()
+            else:
+                all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
+                all_label = torch.cat((all_label, labels.float()), 0)
+
+            base_model.train()
+            if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
+                batch_test = data_cum[i - test_batch + 1: i + 1]
+                batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+                batch_test = batch_test.cuda()
+                _ = base_model(batch_test)
+
+        all_output = all_output.squeeze()
+        all_output = all_output.cuda()
+        all_label = all_label.cuda()
+        # print(all_label)
+        # print(all_output)
+
+        # print(all_output.shape)
+        # print(all_label.squeeze().shape)
+        cc, rmse, mae = regression_metrics(all_label.squeeze(), all_output)
+        print('BFT-A: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+
+
+
+
+
+
+
+def test_BNadapt_(base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    base_model = base_model.cuda()
+    regression_model = regression_model.cuda()
+    base_model.eval()
+    regression_model.eval()
+
+    X_test_c, labels_test_c = tar_data, tar_label
+    aug_dir = ["identity"]
+    all_output = {}
+
+    for aug_way in aug_dir:
+        X_test, labels_test = X_test_c, labels_test_c
+        X_test, labels_test = identity_aug_for_tta(X_test, labels_test, args)
+
+        labels_test = labels_test.squeeze()
+        data_test = torch.utils.data.TensorDataset(X_test, labels_test)
+        loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, shuffle=False, drop_last=False)
+
+        with torch.no_grad():
+            iter_test = iter(loader_test)
+            for i in range(len(loader_test)):
+                base_model.eval()
+                regression_model.eval()
+                data = next(iter_test)
+                inputs = data[0]
+                labels = data[1]
+                inputs = inputs.cuda()
+
+                if i == 0:    data_cum = inputs
+                else:    data_cum = torch.cat((data_cum, inputs), 0)
+
+                if i == 0:  all_label = labels.float()
+                else:       all_label = torch.cat((all_label, labels.float()), 0)
+
+                outputs = regression_model(base_model(inputs)).view(-1)
+
+                if i == 0:
+                    all_output[aug_way] = outputs.float().cpu()                          
+                else:
+                    all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
+
+                if aug_way == 'identity':
+                    base_model.train()
+                    regression_model.train()
+                    if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
+                        batch_test = data_cum[i - test_batch + 1: i + 1]
+                        batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+                        batch_test = batch_test.cuda()
+                        _ = base_model(batch_test)
+
+    for aug_way in aug_dir:
+        this_outputs = all_output[aug_way]   
+        this_outputs = this_outputs.cuda()
+        cc, rmse, mae = regression_metrics(all_label, this_outputs)
+
+        print('BN-adapt: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+
+
+def test_augment_(base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    base_model = base_model.cuda()
+    regression_model = regression_model.cuda()
+    base_model.eval()
+    regression_model.eval()
+
+    X_test_c, labels_test_c = tar_data, tar_label
+    aug_dir = [ "identity", "noise",
+                "mult_0.9", "mult_1.1", "mult_1.2",
+                "freq_high", "freq_low",
+                "slide_1", "slide_2", "slide_3", "slide_4", "slide_5" ]
+    all_output = {}
+
+    for aug_way in aug_dir:
+        X_test, labels_test = X_test_c, labels_test_c
+        X_test_trans = np.transpose(X_test, (0, 2, 1))
+        if aug_way == 'identity':
+            X_test, labels_test = identity_aug_for_tta(X_test, labels_test, args)
+        elif aug_way == 'mult_0.9':
+            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=0.1)
+        elif aug_way == 'mult_1.1':
+            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=-0.1)
+        elif aug_way == 'mult_1.2':
+            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=-0.2)
+        elif aug_way == 'noise':
+            X_test, labels_test = data_noise_f_for_tta(X_test_trans, labels_test, args)
+        elif aug_way == 'freq_high':
+            X_test, labels_test = freq_mod_f_for_tta(X_test_trans, labels_test, args, flag='high')
+        elif aug_way == 'freq_low':
+            X_test, labels_test = freq_mod_f_for_tta(X_test_trans, labels_test, args, flag='low')
+        elif aug_way == 'slide_1':
+            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=1)
+        elif aug_way == 'slide_2':
+            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=2)
+        elif aug_way == 'slide_3':
+            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=3)
+        elif aug_way == 'slide_4':
+            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=4)
+        elif aug_way == 'slide_5':
+            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=5)
+
+        labels_test = labels_test.squeeze()
+        data_test = torch.utils.data.TensorDataset(X_test, labels_test)
+        loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, shuffle=False, drop_last=False)
+
+        with torch.no_grad():
+            iter_test = iter(loader_test)
+            for i in range(len(loader_test)):
+                base_model.eval()
+                regression_model.eval()
+                data = next(iter_test)
+                inputs = data[0]
+                labels = data[1]
+                inputs = inputs.cuda()
+
+                if i == 0:  all_label = labels.float()
+                else:       all_label = torch.cat((all_label, labels.float()), 0)
+
+                outputs = regression_model(base_model(inputs)).view(-1)
+
+                if i == 0:
+                    all_output[aug_way] = outputs.float().cpu()                          
+                else:
+                    all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
+
+    for aug_way in aug_dir:
+        this_outputs = all_output[aug_way]   
+        this_outputs = this_outputs.cuda()
+        cc, rmse, mae = regression_metrics(all_label, this_outputs)
+
+        if aug_way == aug_dir[1]:
+            output_tensor = this_outputs.float().cpu().unsqueeze(0)
+        elif aug_way != aug_dir[0]:
+            output_tensor = torch.cat((output_tensor, this_outputs.float().cpu().unsqueeze(0)), dim=0)
+
+        print(aug_way + ': ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+
+    mean_output = output_tensor.mean(dim=0)
+    mean_output = mean_output.cuda()
+    cc, rmse, mae = regression_metrics(all_label, mean_output)
+
+    print('Augment Avg: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
+        
+    
+def test_augment_with_loss_(model_loss, base_model, regression_model, tar_data, tar_label, args, test_batch=64):
+    X_test = torch.tensor(tar_data, dtype=torch.float32)
+    labels_test = torch.tensor(tar_label, dtype=torch.float32)
+
+    data_test = torch.utils.data.TensorDataset(X_test, labels_test)
+    loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, shuffle=False, drop_last=False)
+    
+    model_loss.eval()
+    iter_test = iter(loader_test)
+    eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
+    with torch.no_grad():
+        for i in range(len(loader_test)):
+            base_model.eval()
+            regression_model.eval()
+            data = next(iter_test)
+            inputs = data[0]
+            labels = data[1]
+
+            inputs_c = inputs[:, :, :eeg_length]
+            inputs_c = inputs_c.unsqueeze(1)
+            if i == 0:    data_cum = inputs_c
+            else:    data_cum = torch.cat((data_cum, inputs_c), 0)
+            
+            inputs = inputs.detach().cpu().numpy()
+            labels = labels.detach().cpu().numpy()
+
+            x_aug_list = generate_augmented_inputs(inputs, labels, args)
+            labels = torch.tensor(labels, dtype=torch.long)
+
+            pred_losses = []
+            for j in range(len(x_aug_list)):
+                x, _ = x_aug_list[j]
+                x = base_model(x)
+                pred_losses.append(model_loss(x))
+
+            pred_losses = torch.stack(pred_losses).squeeze()
+            pred_losses = F.softmax(-pred_losses, dim=0)
+
+            if i == 0:
+                all_pred_losses = pred_losses.unsqueeze(0)
+            else:
+                all_pred_losses = torch.cat([all_pred_losses, pred_losses.unsqueeze(0)], dim=0)
+
+            predicted_probs = all_pred_losses.mean(dim=0)
+            topk_values, topk_indices = torch.topk(predicted_probs, k=6, largest=True)
+            # print(topk_indices)
+            the_output = []
+            for k in topk_indices:
+                x, y = x_aug_list[k]
+                target_output = regression_model(base_model(x)).view(-1)
+                target_output = target_output.unsqueeze(0)
+                the_output.append(target_output)
+            # print(the_output)
+            mean_output = torch.mean(torch.stack(the_output), dim=0)
+
+            if i == 0:
+                all_output = mean_output.float().cpu()
+                all_label = labels.float()
+            else:
+                all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
+                all_label = torch.cat((all_label, labels.float()), 0)
+
+            base_model.train()
+            if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
+                batch_test = data_cum[i - test_batch + 1: i + 1]
+                batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
+                batch_test = batch_test.cuda()
+                _ = base_model(batch_test)
+
+        all_output = all_output.squeeze()
+        all_output = all_output.cuda()
+        all_label = all_label.cuda()
+
+        print(all_output.shape)
+        print(all_label.squeeze().shape)
+        cc, rmse, mae = regression_metrics(all_label.squeeze(), all_output)
+        print('BFT-A: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
