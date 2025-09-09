@@ -318,7 +318,6 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
     aug_dir = ['None', 'mult_flag_0.9', 'mult_flag_1.1', 'mult_flag_1.2', 'noise_flag', 
                'high_freq_mod_flag', 'low_freq_mod_flag', 'slide_wds_flag_1', 
                'slide_wds_flag_2', 'slide_wds_flag_3', 'slide_wds_flag_4', 'slide_wds_flag_5']
-    # aug_dir = ['None']
     all_output = {}
     for aug_way in aug_dir:
         X_test, labels_test = X_test_c, labels_test_c
@@ -361,9 +360,6 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
                 labels = data[1]
                 inputs = inputs.cuda()
 
-                # if i == 0:    data_cum = inputs
-                # else:    data_cum = torch.cat((data_cum, inputs), 0)
-
                 if i == 0:  all_label = labels.float()
                 else:       all_label = torch.cat((all_label, labels.float()), 0)
 
@@ -374,14 +370,6 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
                     all_output[aug_way] = outputs.float().cpu()                          
                 else:
                     all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
-
-                # if aug_way == 'None':
-                #     base_network.train()
-                #     if (i + 1) >= test_batch:
-                #         batch_test = data_cum[i - test_batch + 1: i + 1]
-                #         batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
-                #         batch_test = batch_test.cuda()
-                #         _ = base_network(batch_test)
 
     for aug_way in aug_dir:
         this_outputs = all_output[aug_way]   
@@ -456,16 +444,6 @@ def test_augment_with_loss(model_loss, model_target, block_model, X_test, labels
                 predicted_probs = all_pred_losses.mean(dim=0)
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
-
-            # top3_values, top3_indices = torch.topk(predicted_probs, k=5, largest=True)
-            # the_output = []
-            # for k in top3_indices:
-            #     x, y = x_aug_list[k]
-            #     target_output = model_target(x)
-            #     target_output = target_output / 0.25
-            #     # print(target_output.shape)
-            #     the_output.append(nn.Softmax(dim=1)(target_output))
-            # mean_output = torch.mean(torch.stack(the_output), dim=0)
 
             the_output = []
             for k in range(len(x_aug_list)):

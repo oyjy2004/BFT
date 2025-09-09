@@ -38,15 +38,15 @@ class EEGNet_Block_quantized(nn.Module):
 
 def quantize_eegnet_feature(model, calibration_dataloader, device='cpu'):
     """
-    对EEGNet_feature模型进行静态量化
+    Perform static quantization on the EEGNet_feature model.
     
     Args:
-        model: 训练好的EEGNet_feature模型
-        calibration_dataloader: 校准数据加载器
-        device: 设备
+        model: Pre-trained EEGNet_feature model
+        calibration_dataloader: Calibration dataloader
+        device: Device
     
     Returns:
-        quantized_model: 量化后的模型
+        quantized_model: Quantized model
     """
     
     quantized_model = EEGNet_Block_quantized(
@@ -120,8 +120,6 @@ if __name__ == '__main__':
         args.idt = 0
         src_data, src_label, tar_data, tar_label = get_test_train(data_subjects, labels_subjects, idt)
 
-        tar_trails = tar_data.shape[0]
-        split_trails = round(tar_trails / 2)
         eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
         X_train = src_data[:, :, :eeg_length]
         X_train = torch.tensor(X_train, dtype=torch.float32)
@@ -130,15 +128,6 @@ if __name__ == '__main__':
         data_train = torch.utils.data.TensorDataset(X_train, labels_train)
         loader_train = torch.utils.data.DataLoader(data_train, batch_size=32, shuffle=True, drop_last=True)
 
-        # calibration_data, calibration_label = tar_data[:split_trails], tar_label[:split_trails]
-        # tar_data, tar_label = tar_data[split_trails:], tar_label[split_trails:]
-        # X_calibration = calibration_data[:, :, :eeg_length]
-        # X_calibration = torch.tensor(X_calibration, dtype=torch.float32)
-        # labels_calibration = torch.tensor(calibration_label, dtype=torch.long)
-        # X_calibration = X_calibration.unsqueeze(1)
-        # data_calibration = torch.utils.data.TensorDataset(X_calibration, labels_calibration)
-        # loader_calibration = torch.utils.data.DataLoader(data_calibration, batch_size=32, shuffle=True, drop_last=True)
-
         model_target = EEGNet(n_classes=args.class_num,
                         Chans=args.chn,
                         Samples=eeg_length,
@@ -146,9 +135,12 @@ if __name__ == '__main__':
                         F1=8,
                         D=2,
                         F2=16,
-                        dropoutRate=0.25)   
-        base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED' + str(SEED) + '/EEGNet_pth/'
-        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_1800.pth'
+                        dropoutRate=0.25)
+        PATH_EEGNET_MODEL = "/PATH/TO/SAVE/MODEL/"
+        PATH_TO_LOSSPRE_MODEL_DROPOUT = "/PATH/TO/SAVE/MODEL/"  
+
+        base_dir = PATH_EEGNET_MODEL + str(SEED) + '/EEGNet_pth/'
+        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_200.pth'
         tar_model_dir_cc = tar_model_dir
         checkpoint = torch.load(tar_model_dir)
         model_target.load_state_dict(checkpoint)
@@ -156,28 +148,10 @@ if __name__ == '__main__':
         classifier = EEGNet_Classifier(model_target.classifier_block)
 
         model_loss = EEGNetLossPredictor(F2=16, Samples=eeg_length) 
-        base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED' + str(SEED) + '/loss_model_dropout_new(batch=16)/'
-        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_720.pth'
+        base_dir = PATH_TO_LOSSPRE_MODEL_DROPOUT + str(SEED) + '/loss_model_dropout_new(batch=16)/'
+        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_20.pth'
         checkpoint = torch.load(loss_model_dir)
         model_loss.load_state_dict(checkpoint)
-
-        ################## BN-adapt ##################
-        # test_batch = 8
-        # block_model.train()
-        # with torch.no_grad():
-        #     iter_calibration = iter(loader_calibration)
-        #     for i in range(len(loader_calibration)):
-        #         data = next(iter_calibration)
-        #         inputs = data[0]
-        #         labels = data[1]
-        #         if i == 0:    data_cum = inputs
-        #         else:    data_cum = torch.cat((data_cum, inputs), 0)
-        #         if (i + 1) >= test_batch:
-        #             batch_test = data_cum[i - test_batch + 1: i + 1]
-        #             batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
-        #             _ = block_model(batch_test)
-        # block_model.eval()
-        ################## BN-adapt ##################
 
         ################## quantization ##################
         quantized_feature_model = quantize_eegnet_feature(block_model, loader_train)
@@ -185,7 +159,7 @@ if __name__ == '__main__':
         # size_fp = model_bytes(block_model)
         # size_q = model_bytes(quantized_feature_model)
         # ratio = size_q / size_fp
-        # print(f"Model-FP: {size_fp:.2f} B    Model-Q: {size_q:.2f} B    比例(Q/FP) = {ratio:.3f}")
+        # print(f"Model-FP: {size_fp:.2f} B    Model-Q: {size_q:.2f} B    RATE(Q/FP) = {ratio:.3f}")
         # print_model_parameters(quantized_feature_model)
         ################## quantization ##################
 
@@ -197,9 +171,6 @@ if __name__ == '__main__':
 
         # # BFT-D time
         acc_3, augment_t_3, forward_t_3 = test_dropout_with_loss_q(model_loss, quantized_feature_model, classifier, tar_data, tar_label, args)
-
-        # acc_2, augment_t_2, forward_t_2 = 0, 0, 0
-        # acc_3, augment_t_3, forward_t_3 = 0, 0, 0
         
         all_acc_1.append(acc_1)
         all_acc_2.append(acc_2)

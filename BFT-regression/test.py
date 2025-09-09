@@ -41,37 +41,28 @@ if __name__ == '__main__':
         # cpu or cuda
         args.data_env = 'gpu' if torch.cuda.device_count() != 0 else 'local'
 
-        # # get data
-        # if args.data == 'Driving':
-        #     eeg_path = "/mnt/data2/oyjy/Data/Driving/Driving_eeg_filter.pkl"
-        #     label_path = "/mnt/data2/oyjy/Data/Driving/Driving_labels.pkl"
-        # elif args.data == 'New_driving':
-        #     eeg_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_eeg.pkl"
-        #     label_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_label.pkl"
-        # elif args.data == 'Seed':
-        #     eeg_path = "/mnt/data2/oyjy/Data/SEED/SEED_eeg_f.pkl"
-        #     label_path = "/mnt/data2/oyjy/Data/SEED/SEED_labels.pkl"
+        # get data
+        PATH_TO_DATA = "/PATH/TO/DATA/"
+        if args.data == 'Driving':
+            eeg_path = PATH_TO_DATA + "Driving/Driving_eeg_filter.pkl"
+            label_path = PATH_TO_DATA + "Driving/Driving_labels.pkl"
+        elif args.data == 'New_driving':
+            eeg_path = PATH_TO_DATA + "New_driving/NewDri_eeg.pkl"
+            label_path = PATH_TO_DATA + "New_driving/NewDri_label.pkl"
+        elif args.data == 'Seed':
+            eeg_path = PATH_TO_DATA + "SEED/SEED_eeg_f.pkl"
+            label_path = PATH_TO_DATA + "SEED/SEED_labels.pkl"
+        EEG, LABEL = load_data(eeg_path, label_path, args)
 
-        # EEG, LABEL = load_data(eeg_path, label_path, args)
-
-        # for i in range(len(EEG)):
-        #     EEG[i] = EA_offline(EEG[i], 1)
+        for i in range(len(EEG)):
+            EEG[i] = EA_offline(EEG[i], 1)
 
         for SEED in [42, 43, 44]:
             args.SEED = SEED
             fix_random_seed(SEED)
             for testID in range(N):
                 args.testID = testID
-                # tar_data, tar_label = get_testset(EEG, LABEL, args)
-
-                load_dir = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/data_noise/noise4/" + data_name + '/s' + str(args.testID) + '/dataset.pt'
-                checkpoint = torch.load(load_dir)
-                tar_data = checkpoint['data']     
-                tar_label = checkpoint['labels']  
-                tar_data = tar_data.detach().cpu().numpy()
-                tar_label = tar_label.detach().cpu().numpy()
-                tar_data = EA_offline(tar_data, 1)
-
+                tar_data, tar_label = get_testset(EEG, LABEL, args)
                 print(args.data, '  s' + str(testID))
                 print("Target Data Shape: ", tar_data.shape, "Target Label Shape: ", tar_data.shape)
 
@@ -86,35 +77,17 @@ if __name__ == '__main__':
                 base_model = EEGNet_Block(EEGNet_model.block1, EEGNet_model.block2)
                 regression_model = EEGNet_Regression(EEGNet_model.regression_block) 
 
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED' + str(SEED) + '/EEGNet/New_EEGNetBlock/'
-                if args.data  == 'Driving':
-                    if args.testID == 5:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25400.pth'
-                    elif args.testID in [6, 10]:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25300.pth'
-                    elif args.testID == 12:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25500.pth'
-                    else:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25200.pth'
-                elif args.data  == 'Seed':
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_30400.pth'
+                PATH_TO_MODEL = '/PATH/TO/SAVE/MODEL/'
+                PATH_TO_LOSSPRE_MODEL_DROPOUT = '/PATH/TO/SAVE/MODEL/'
+                base_dir = PATH_TO_MODEL + str(SEED) + '/EEGNet/New_EEGNetBlock/'
+                tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_100.pth'
                 tar_model_dir_cc = tar_model_dir
                 checkpoint = torch.load(tar_model_dir)
                 base_model.load_state_dict(checkpoint)
                 base_model = base_model.cuda()
 
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED' + str(SEED) + '/EEGNet/New_Regression_head/'
-                if args.data  == 'Driving':
-                    if args.testID == 5:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25400.pth'
-                    elif args.testID in [6, 10]:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25300.pth'
-                    elif args.testID == 12:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25500.pth'
-                    else:
-                        tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25200.pth'
-                elif args.data  == 'Seed':
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_30400.pth'
+                base_dir = PATH_TO_MODEL + str(SEED) + '/EEGNet/New_Regression_head/'
+                tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_100.pth'
                 checkpoint = torch.load(tar_model_dir)
                 regression_model.load_state_dict(checkpoint)
                 regression_model = regression_model.cuda()
@@ -131,22 +104,8 @@ if __name__ == '__main__':
                 input_dim = F2 * (eeg_length // (4 * 8))
                 model_loss = LossPredictor(input_dim)
 
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED' + str(SEED) + '/EEGNet/New_loss_model_dropout/'
-                if args.data  == 'Driving':
-                    if args.testID == 5:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10160.pth'
-                    elif args.testID == 6:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10120.pth'
-                    elif args.testID == 12:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10200.pth'
-                    elif args.testID in [9, 11, 14]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10100.pth'
-                    elif args.testID == 10:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10140.pth'
-                    else:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_10080.pth'
-                elif data_name == 'Seed': 
-                    loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_12160.pth'
+                base_dir = PATH_TO_LOSSPRE_MODEL_DROPOUT + str(SEED) + '/EEGNet/New_loss_model_dropout/'
+                loss_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/LossPredictor_epoch_20.pth'
 
                 checkpoint = torch.load(loss_model_dir)
                 model_loss.load_state_dict(checkpoint)

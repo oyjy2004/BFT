@@ -117,8 +117,6 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
             pred_losses = torch.stack(pred_losses).squeeze()
             pred_losses = F.softmax(-pred_losses, dim=0)
 
-            # pred_losses = F.softmax(pred_losses, dim=0)
-
             # 10 * dim
             all_mask = torch.stack(all_mask).squeeze()
 
@@ -130,17 +128,7 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
                 predicted_probs = all_pred_losses.mean(dim=0)
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
-            # predicted_probs = pred_losses
 
-            # top3_values, top3_indices = torch.topk(predicted_probs, k=5, largest=True)
-            # the_output = []
-            # for k in top3_indices:
-            #     x = all_mask[k]
-            #     target_output = classifier(x)
-            #     target_output = target_output.unsqueeze(0)
-            #     # print(target_output.shape)
-            #     the_output.append(nn.Softmax(dim=1)(target_output))
-            # mean_output = torch.mean(torch.stack(the_output), dim=0)
             the_output = []
             for k in range(all_mask.shape[0]):
                 x = all_mask[k]

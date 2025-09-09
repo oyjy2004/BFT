@@ -10,7 +10,9 @@ from augment import *
 
 import numpy as np
 import sys
-sys.path.append('/mnt/data2/oyjy/test-time/test-time-aug/sodeep')
+
+PATH_TO_SODDEP = '../sodeep'
+sys.path.append(PATH_TO_SODDEP)
 from sodeep import load_sorter, SpearmanLoss
 
     
@@ -49,6 +51,8 @@ def compute_real_losses(augmented_inputs, model_target):
     return torch.tensor(real_losses)  # dim = 12
 
 
+PATH_TO_LOSSPRE_MODEL = "/PATH/TO/SAVE/MODEL/"
+PATH_TO_LOSSPRE_MODEL_DROPOUT = "/PATH/TO/SAVE/MODEL/"
 def learn_augment_loss(model_loss, model_target, block_model, X_train, labels_train, args):
     X_train = torch.tensor(X_train, dtype=torch.float32)
     labels_train = torch.tensor(labels_train, dtype=torch.long)
@@ -57,7 +61,7 @@ def learn_augment_loss(model_loss, model_target, block_model, X_train, labels_tr
     loader_train = torch.utils.data.DataLoader(data_train, batch_size=args.batch_size, 
                                                shuffle=True, drop_last=True)
     
-    sorter_checkpoint_path = '/mnt/data2/oyjy/test-time/test-time-aug/sodeep/weights/12th_100epochs_best_model.pth.tar'
+    sorter_checkpoint_path = PATH_TO_SODDEP + '/weights/12th_100epochs_best_model.pth.tar'
     criterion = SpearmanLoss(*load_sorter(sorter_checkpoint_path))
     criterion.cuda()
     optimizer = optim.Adam(model_loss.parameters(), lr=args.lr)
@@ -119,7 +123,7 @@ def learn_augment_loss(model_loss, model_target, block_model, X_train, labels_tr
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED" + str(args.SEED) + "/loss_model_new(batch=16)/"
+            CHECKPOINT_DIR = PATH_TO_LOSSPRE_MODEL + str(args.SEED) + "/loss_model_new(batch=16)/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.idt) + "/loss_pre"
             if os.path.isdir(path):
                  pass
@@ -142,7 +146,7 @@ def learn_dropout_loss(model_loss, block_model, classifier, X_train, labels_trai
     loader_train = torch.utils.data.DataLoader(data_train, batch_size=args.batch_size, 
                                                shuffle=True, drop_last=True)
     
-    sorter_checkpoint_path = '/mnt/data2/oyjy/test-time/test-time-aug/sodeep/weights/10th_100epochs_best_model.pth.tar'
+    sorter_checkpoint_path = PATH_TO_SODDEP + 'weights/10th_100epochs_best_model.pth.tar'
     loss_fn = nn.CrossEntropyLoss()
     criterion = SpearmanLoss(*load_sorter(sorter_checkpoint_path))
     criterion.cuda()
@@ -216,7 +220,7 @@ def learn_dropout_loss(model_loss, block_model, classifier, X_train, labels_trai
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED" + str(args.SEED) + "/loss_model_dropout_new(batch=16)/"
+            CHECKPOINT_DIR = PATH_TO_LOSSPRE_MODEL_DROPOUT + str(args.SEED) + "/loss_model_dropout_new(batch=16)/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.idt) + "/loss_pre"
             if os.path.isdir(path):
                  pass
@@ -227,7 +231,7 @@ def learn_dropout_loss(model_loss, block_model, classifier, X_train, labels_trai
 
 
 if __name__ == '__main__':
-    sorter_checkpoint_path = '/mnt/data2/oyjy/test-time/test-time-aug/sodeep/weights/12th_50epochs_best_model.pth.tar'
+    sorter_checkpoint_path = PATH_TO_SODDEP + '/weights/12th_50epochs_best_model.pth.tar'
     criterion = SpearmanLoss(*load_sorter(sorter_checkpoint_path))
     a = [2, 3, 3.2, 1.5, 3.4, 6.7, 9, 1.1, 12.1, 11, 57, 100]
     b = [6.7, 9, 1.1, 12.1, 11, 57, 2, 3, 3.2, 1.5, 3.4, 100]

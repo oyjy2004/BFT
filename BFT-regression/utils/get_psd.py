@@ -59,15 +59,16 @@ if __name__ == '__main__':
           args.data_env = 'gpu' if torch.cuda.device_count() != 0 else 'local'
 
           # get data
+          PATH_TO_DATA = "/PATH/TO/DATA/"
           if args.data == 'Driving':
-              eeg_path = "/mnt/data2/oyjy/Data/Driving/Driving_eeg_filter.pkl"
-              label_path = "/mnt/data2/oyjy/Data/Driving/Driving_labels.pkl"
+              eeg_path = PATH_TO_DATA + "Driving/Driving_eeg_filter.pkl"
+              label_path = PATH_TO_DATA + "Driving/Driving_labels.pkl"
           elif args.data == 'New_driving':
-              eeg_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_eeg.pkl"
-              label_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_label.pkl"
+              eeg_path = PATH_TO_DATA + "New_driving/NewDri_eeg.pkl"
+              label_path = PATH_TO_DATA + "New_driving/NewDri_label.pkl"
           elif args.data == 'Seed':
-              eeg_path = "/mnt/data2/oyjy/Data/SEED/SEED_eeg_f.pkl"
-              label_path = "/mnt/data2/oyjy/Data/SEED/SEED_labels.pkl"
+              eeg_path = PATH_TO_DATA + "SEED/SEED_eeg_f.pkl"
+              label_path = PATH_TO_DATA + "SEED/SEED_labels.pkl"
 
           EEG, LABEL = load_data(eeg_path, label_path, args)
   
@@ -81,10 +82,11 @@ if __name__ == '__main__':
  
                SEED = 42
                fix_random_seed(SEED)
-
+               
+               PATH_TO_PKL = "/PATH/TO/PKL/"
                psd_feature = extract_PSD_welch(tar_data)
                print(psd_feature.shape)
-               save_path = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/data_psd/" + data_name + '/s' + str(args.testID)
+               save_path = PATH_TO_PKL + data_name + '/s' + str(args.testID)
                if os.path.isdir(save_path):
                     pass
                else:

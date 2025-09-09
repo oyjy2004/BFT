@@ -86,17 +86,9 @@ if __name__ == '__main__':
                                 D=2,
                                 F2=16,
                                 dropoutRate=0.25)   
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED' + str(SEED) + '/EEGNet_pth/'
-                if args.data  == 'BNCI2014001':
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_3600.pth'
-                elif data_name == 'Zhou2016': 
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_1800.pth'
-                elif data_name == 'Schirrmeister2017':
-                    if idt in [0, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_34000.pth'
-                    elif idt in [1, 12]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32600.pth'
-                    elif idt in [2, 3, 5, 6, 8, 9, 10, 11, 13]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32200.pth'
-                    elif idt in [4, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32800.pth'
-                    elif idt in [7, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_33000.pth'
+                PATH_EEGNET_MODEL = "/PATH/TO/SAVE/MODEL/"
+                base_dir = PATH_EEGNET_MODEL + str(SEED) + '/EEGNet_pth/'
+                tar_model_dir = base_dir + args.data + '/s' + str(args.idt) + '/EEGNet_epoch_200.pth'
                 checkpoint = torch.load(tar_model_dir)
                 model_target.load_state_dict(checkpoint)
                 model_target = model_target.cuda()

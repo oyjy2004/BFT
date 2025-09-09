@@ -8,8 +8,9 @@ def data_process(dataset):
     :return: X, y, num_subjects, paradigm, sample_rate
     '''
 
-    X = np.load('/mnt/data2/oyjy/test-time/test-time-aug/BP-free_new/data/' + dataset + '/X.npy')
-    y = np.load('/mnt/data2/oyjy/test-time/test-time-aug/BP-free_new/data/' + dataset + '/labels.npy')
+    DATA_PATH = "/PATH/TO/SAVE/DATA/"
+    X = np.load(DATA_PATH + dataset + '/X.npy')
+    y = np.load(DATA_PATH + dataset + '/labels.npy')
     num_subjects, paradigm, sample_rate = None, None, None
 
     if dataset == 'BNCI2014001':
@@ -95,13 +96,11 @@ def data_process(dataset):
 
 
 def split_data_by_subject(X, y, trails_num):
-    # 检查输入的有效性
     if len(X) != len(y):
         raise ValueError("X and y must have the same number of samples.")
     if sum(trails_num) != len(X):
         raise ValueError("The sum of trails_num must equal the number of samples in X.")
 
-    # 将数据按行分割为不同的受试者
     data_subjects = np.split(X, np.cumsum(trails_num)[:-1], axis=0)
     labels_subjects = np.split(y, np.cumsum(trails_num)[:-1], axis=0)
 
@@ -109,11 +108,9 @@ def split_data_by_subject(X, y, trails_num):
 
 
 def get_test_train(data_subjects, labels_subjects, idt):
-    # 获取测试数据
     test_x = data_subjects[idt]
     test_y = labels_subjects[idt]
     
-    # 获取训练数据
     train_x = np.concatenate([data_subjects[i] for i in range(len(data_subjects)) if i != idt], axis=0)
     train_y = np.concatenate([labels_subjects[i] for i in range(len(data_subjects)) if i != idt], axis=0)
     

@@ -3,7 +3,7 @@ import time
 from augment import *
 
 
-def test_augment_with_loss_nq(model_loss, model_target, block_model,  X_test, labels_test, args, test_batch=8):
+def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, labels_test, args, test_batch=8):
     eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
     X_test = torch.tensor(X_test, dtype=torch.float32)
     labels_test = torch.tensor(labels_test, dtype=torch.long)
@@ -157,7 +157,6 @@ def test_dropout_with_loss_nq(model_loss, block_model, classifier, X_test, label
                 predicted_probs = all_pred_losses.mean(dim=0)
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
-            # predicted_probs = pred_losses
 
             the_output = []
             for k in range(all_mask.shape[0]):
@@ -352,13 +351,6 @@ def test_augment_with_loss_q(model_loss, block_model, classifier, X_test, labels
             mean_output = (torch.stack(the_output).squeeze(1) * predicted_probs.unsqueeze(1)) / predicted_probs.sum()
             mean_output = mean_output.sum(dim=0).unsqueeze(0)
 
-            # block_model.train()
-            # if (i + 1) >= test_batch:
-            #     batch_test = data_cum[i - test_batch + 1: i + 1]
-            #     batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
-            #     batch_test = batch_test.cpu()
-            #     _ = block_model(batch_test)
-
             end_time = time.time()
             forward_time.append(end_time - start_time)
             ###################### forward ####################
@@ -441,7 +433,6 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
                 predicted_probs = all_pred_losses.mean(dim=0)
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
-            # predicted_probs = pred_losses
 
             the_output = []
             for k in range(all_mask.shape[0]):
@@ -452,13 +443,6 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
                 the_output.append(nn.Softmax(dim=1)(target_output))
             mean_output = (torch.stack(the_output).squeeze(1) * predicted_probs.unsqueeze(1)) / predicted_probs.sum()
             mean_output = mean_output.sum(dim=0).unsqueeze(0)
-
-            # block_model.train()
-            # if (i + 1) >= test_batch:
-            #     batch_test = data_cum[i - test_batch + 1: i + 1]
-            #     batch_test = batch_test.reshape(test_batch, 1, batch_test.shape[2], batch_test.shape[3])
-            #     batch_test = batch_test.cpu()
-            #     _ = block_model(batch_test)
 
             end_time = time.time()
             all_time.append(end_time - start_time)
@@ -494,21 +478,21 @@ def model_bytes(model: torch.nn.Module) -> int:
 
 def print_model_parameters(model, print_grad=False, print_size=False):
     """
-    打印模型的所有参数和缓冲区信息
+    Print all parameters and buffer information of the model.
     
-    参数:
-        model: PyTorch模型
-        print_grad: 是否打印梯度信息
-        print_size: 是否打印每个参数的内存占用
+    Args:
+        model: PyTorch model
+        print_grad: Whether to print gradient information
+        print_size: Whether to print the memory usage of each parameter
     """
     print("=" * 80)
-    print(f"模型结构: {model.__class__.__name__}")
+    print(f"Model structure: {model.__class__.__name__}")
     print("=" * 80)
     
     total_params = 0
     total_size = 0
     
-    print("\n可训练参数:")
+    print("\nTrainable parameters:")
     print("-" * 80)
     for name, param in model.named_parameters():
         if param.requires_grad:
@@ -517,28 +501,28 @@ def print_model_parameters(model, print_grad=False, print_size=False):
             total_params += num_params
             total_size += param_size
             
-            print(f"{name:40} | 形状: {str(list(param.shape)):20} | 类型: {param.dtype} | 参数数量: {num_params:8,}")
+            print(f"{name:40} | Shape: {str(list(param.shape)):20} | Dtype: {param.dtype} | Num params: {num_params:8,}")
             if print_grad:
-                print(f"{'':40} | 梯度: {param.grad is not None}")
+                print(f"{'':40} | Gradient: {param.grad is not None}")
             if print_size:
-                print(f"{'':40} | 大小: {param_size:8,} bytes ({param_size/1024:.2f} KB)")
+                print(f"{'':40} | Size: {param_size:8,} bytes ({param_size/1024:.2f} KB)")
     
-    print("\n缓冲区（不可训练参数）:")
+    print("\nBuffers (non-trainable parameters):")
     print("-" * 80)
     for name, buffer in model.named_buffers():
         num_params = buffer.numel()
         buffer_size = num_params * buffer.element_size()
         total_size += buffer_size
         
-        print(f"{name:40} | 形状: {str(list(buffer.shape)):20} | 类型: {buffer.dtype} | 参数数量: {num_params:8,}")
+        print(f"{name:40} | Shape: {str(list(buffer.shape)):20} | Dtype: {buffer.dtype} | Num params: {num_params:8,}")
         if print_size:
-            print(f"{'':40} | 大小: {buffer_size:8,} bytes ({buffer_size/1024:.2f} KB)")
+            print(f"{'':40} | Size: {buffer_size:8,} bytes ({buffer_size/1024:.2f} KB)")
     
-    print("\n汇总信息:")
+    print("\nSummary:")
     print("-" * 80)
-    print(f"总参数量: {total_params:,}")
-    print(f"总内存占用: {total_size:,} bytes ({total_size/1024/1024:.2f} MB)")
+    print(f"Total parameters: {total_params:,}")
+    print(f"Total memory usage: {total_size:,} bytes ({total_size/1024/1024:.2f} MB)")
     
     if total_params != 0:
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"可训练参数比例: {trainable_params/total_params*100:.2f}%")
+        print(f"Trainable parameter ratio: {trainable_params/total_params*100:.2f}%")

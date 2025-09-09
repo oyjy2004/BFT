@@ -14,7 +14,8 @@ from models.EEGNet import *
 from models.lossPredictor import *
 
 import sys
-sys.path.append('/mnt/data2/oyjy/test-time/test-time-aug/sodeep')
+PATH_TO_SODEEP = '../sodeep'
+sys.path.append(PATH_TO_SODEEP)
 from sodeep import load_sorter, SpearmanLoss
 
 
@@ -32,7 +33,7 @@ def learn_dropout_loss(model_loss, base_model, regression_model, X_train, labels
                                                shuffle=True, drop_last=True)
     
     loss_fn = nn.MSELoss()
-    sorter_checkpoint_path = '/mnt/data2/oyjy/test-time/test-time-aug/sodeep/weights/10th_100epochs_best_model.pth.tar'
+    sorter_checkpoint_path = PATH_TO_SODEEP + '/weights/10th_100epochs_best_model.pth.tar'
     criterion = SpearmanLoss(*load_sorter(sorter_checkpoint_path))
     criterion.cuda()
     optimizer = optim.Adam(model_loss.parameters(), lr=args.lr)
@@ -105,7 +106,8 @@ def learn_dropout_loss(model_loss, base_model, regression_model, X_train, labels
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_loss_model_dropout/"
+            PATH_TO_LOSSPRE_MODEL_DROPOUT = '/PATH/TO/SAVE/MODEL/'
+            CHECKPOINT_DIR = PATH_TO_LOSSPRE_MODEL_DROPOUT + str(args.SEED) + "/EEGNet/New_loss_model_dropout/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(model_loss.state_dict(), path + "/LossPredictor_epoch_" + str(iter_num) + ".pth")
@@ -132,7 +134,8 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
         "freq_high", "freq_low",
         "slide_1", "slide_2", "slide_3", "slide_4", "slide_5"
     ]
-    data_root = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/augmented_data/" + args.data
+    PATH_TO_AUGED_DATA = '/PATH/TO/AUGED/DATA/'
+    data_root = PATH_TO_AUGED_DATA + args.data
 
     test_id = args.testID
     all_ids = list(range(args.N))
@@ -143,7 +146,7 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
         aug_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
 
-    sorter_checkpoint_path = '/mnt/data2/oyjy/test-time/test-time-aug/sodeep/weights/12th_100epochs_best_model.pth.tar'
+    sorter_checkpoint_path = PATH_TO_SODEEP + 'weights/12th_100epochs_best_model.pth.tar'
     criterion = SpearmanLoss(*load_sorter(sorter_checkpoint_path))
     criterion.cuda()
     optimizer = optim.Adam(model_loss.parameters(), lr=args.lr)
@@ -168,15 +171,6 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
             continue
         
         iter_num += 1
-
-        # [12][2]
-        # for i, item in enumerate(inputs_train):
-        #     print(f"[{i}] type: {type(item)}")
-        #     for j, itemm in enumerate(item):
-        #         print(f"\t[{j}] type: {type(itemm)}")
-        #         print("\t", itemm.shape)
-
-        
         trans_traininputs = []
         for i in range(len(inputs_train)):
             trans_traininputs.append((inputs_train[i][0].cuda(), inputs_train[i][1].cuda()))
@@ -213,7 +207,8 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_loss_model_augment/"
+            PATH_TO_LOSSPRE_MODEL = '/PATH/TO/SAVE/MODEL/'
+            CHECKPOINT_DIR = PATH_TO_LOSSPRE_MODEL + str(args.SEED) + "/EEGNet/New_loss_model_augment/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(model_loss.state_dict(), path + "/LossPredictor_epoch_" + str(iter_num) + ".pth")
@@ -222,7 +217,6 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '5, 6, 7'
     data_name_list = ['Driving', 'Seed']
-    # data_name_list = ['Seed']
 
     for data_name in data_name_list:
         if data_name == 'Driving': 
@@ -261,16 +255,16 @@ if __name__ == '__main__':
         args.data_env = 'gpu' if torch.cuda.device_count() != 0 else 'local'
 
         # get data
+        PATH_TO_DATA = "/PATH/TO/DATA/"
         if args.data == 'Driving':
-            eeg_path = "/mnt/data2/oyjy/Data/Driving/Driving_eeg_filter.pkl"
-            label_path = "/mnt/data2/oyjy/Data/Driving/Driving_labels.pkl"
+            eeg_path = PATH_TO_DATA + "Driving/Driving_eeg_filter.pkl"
+            label_path = PATH_TO_DATA + "Driving/Driving_labels.pkl"
         elif args.data == 'New_driving':
-            eeg_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_eeg.pkl"
-            label_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_label.pkl"
+            eeg_path = PATH_TO_DATA + "New_driving/NewDri_eeg.pkl"
+            label_path = PATH_TO_DATA + "New_driving/NewDri_label.pkl"
         elif args.data == 'Seed':
-            eeg_path = "/mnt/data2/oyjy/Data/SEED/SEED_eeg_f.pkl"
-            label_path = "/mnt/data2/oyjy/Data/SEED/SEED_labels.pkl"
-
+            eeg_path = PATH_TO_DATA + "SEED/SEED_eeg_f.pkl"
+            label_path = PATH_TO_DATA + "SEED/SEED_labels.pkl"
         EEG, LABEL = load_data(eeg_path, label_path, args)
 
         for i in range(len(EEG)):
@@ -283,6 +277,7 @@ if __name__ == '__main__':
             print("Source Data Shape: ", src_data.shape, "Source Label Shape: ", src_label.shape)
 
             SEED = 44
+            args.SEED = SEED
             fix_random_seed(SEED)
 
             eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
@@ -296,34 +291,15 @@ if __name__ == '__main__':
             base_model = EEGNet_Block(EEGNet_model.block1, EEGNet_model.block2)
             regression_model = EEGNet_Regression(EEGNet_model.regression_block) 
 
-            base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_EEGNetBlock/'
-            if args.data  == 'Driving':
-                if args.testID == 5:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25400.pth'
-                elif args.testID in [6, 10]:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25300.pth'
-                elif args.testID == 12:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25500.pth'
-                else:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_25200.pth'
-            elif args.data  == 'Seed':
-                tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_30400.pth'
+            PATH_TO_MODEL = '/PATH/TO/SAVE/MODEL/'
+            base_dir = PATH_TO_MODEL + str(args.SEED) + '/EEGNet/New_EEGNetBlock/'
+            tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/EEGNetBlock_epoch_100.pth'
             checkpoint = torch.load(tar_model_dir)
             base_model.load_state_dict(checkpoint)
             base_model = base_model.cuda()
 
-            base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_Regression_head/'
-            if args.data  == 'Driving':
-                if args.testID == 5:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25400.pth'
-                elif args.testID in [6, 10]:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25300.pth'
-                elif args.testID == 12:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25500.pth'
-                else:
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_25200.pth'
-            elif args.data  == 'Seed':
-                tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_30400.pth'
+            base_dir = base_dir = PATH_TO_MODEL + str(args.SEED) + '/EEGNet/New_Regression_head/'
+            tar_model_dir = base_dir + args.data + '/' + 's' + str(args.testID) + '/Regression_head_epoch_100.pth'
             checkpoint = torch.load(tar_model_dir)
             regression_model.load_state_dict(checkpoint)
             regression_model = regression_model.cuda()

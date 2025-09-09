@@ -56,14 +56,6 @@ if __name__ == '__main__':
                 # target subject
                 args.idt = idt
                 src_data, src_label, tar_data, tar_label = get_test_train(data_subjects, labels_subjects, idt)
-
-                load_dir = "/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/data_noise/noise3/" + data_name + '/s' + str(args.idt) + '/dataset.pt'
-                checkpoint = torch.load(load_dir)
-                tar_data = checkpoint['data']     
-                tar_label = checkpoint['labels']  
-                tar_data = tar_data.detach().cpu().numpy()
-                tar_label = tar_label.detach().cpu().numpy()
-                tar_data = EA_offline(tar_data, 1)
                 
                 eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
                 model_target = EEGNet(n_classes=args.class_num,
@@ -74,17 +66,11 @@ if __name__ == '__main__':
                                 D=2,
                                 F2=16,
                                 dropoutRate=0.25)   
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED' + str(SEED) + '/EEGNet_pth/'
-                if args.data  == 'BNCI2014001':
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_3600.pth'
-                elif data_name == 'Zhou2016': 
-                    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_1800.pth'
-                elif data_name == 'Schirrmeister2017':
-                    if idt in [0, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_34000.pth'
-                    elif idt in [1, 12]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32600.pth'
-                    elif idt in [2, 3, 5, 6, 8, 9, 10, 11, 13]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32200.pth'
-                    elif idt in [4, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_32800.pth'
-                    elif idt in [7, ]:    tar_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/EEGNet_epoch_33000.pth'
+                PATH_EEGNET_MODEL = "/PATH/TO/SAVE/MODEL/"
+                PATH_TO_LOSSPRE_MODEL_DROPOUT = "/PATH/TO/SAVE/MODEL/"  
+
+                base_dir = PATH_EEGNET_MODEL + str(SEED) + '/EEGNet_pth/'
+                tar_model_dir = base_dir + args.data + '/s' + str(args.idt) + '/EEGNet_epoch_200.pth'
                 tar_model_dir_cc = tar_model_dir
                 checkpoint = torch.load(tar_model_dir)
                 model_target.load_state_dict(checkpoint)
@@ -107,23 +93,9 @@ if __name__ == '__main__':
                 classifier = classifier.cuda()
 
                 model_loss = EEGNetLossPredictor(F2=16, Samples=eeg_length) 
-                base_dir = '/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED' + str(SEED) + '/loss_model_dropout_new(batch=16)/'
-                if args.data  == 'BNCI2014001':
-                    loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_1440.pth'
-                elif data_name == 'Zhou2016': 
-                    if idt == 0:    loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_720.pth'
-                    else:   loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_760.pth'
-                elif data_name == 'Schirrmeister2017': 
-                    if idt in [0, ]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_6820.pth'
-                    elif idt in [1, 12]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_6520.pth'
-                    elif idt in [2, 3, 5, 6, 8, 9, 10, 11, 13]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_6460.pth'
-                    elif idt in [4, ]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_6560.pth'
-                    elif idt in [7, ]:
-                        loss_model_dir = base_dir + args.data + '/' + 's' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_6600.pth'
+                base_dir = PATH_TO_LOSSPRE_MODEL_DROPOUT + str(SEED) + '/loss_model_dropout_new(batch=16)/'
+                loss_model_dir = base_dir + args.data + '/s' + str(args.idt) + '/loss_pre/EEGNetLossPredictor_epoch_20.pth'
+    
                 checkpoint = torch.load(loss_model_dir)
                 model_loss.load_state_dict(checkpoint)
                 model_loss = model_loss.cuda()

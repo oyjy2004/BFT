@@ -62,20 +62,15 @@ def test_dropout(base_model, regression_model, X_test, labels_test, args):
                     all_output[key] = torch.cat((all_output[key], outputs.float().cpu()), 0)
                     
     for key, value_list in all_output.items():
-        if key == range_keys[0]:
-            output_tensor = value_list.float().cpu().unsqueeze(0)
-            # print(output_tensor.shape)        [1, trial_num]
-        else:
-            output_tensor = torch.cat((output_tensor, value_list.float().cpu().unsqueeze(0)), dim=0)
+        if key == range_keys[0]:    output_tensor = value_list.float().cpu().unsqueeze(0)
+        else:   output_tensor = torch.cat((output_tensor, value_list.float().cpu().unsqueeze(0)), dim=0)
 
     # print(output_tensor.shape)        [10, trial_num]
-
     mean_output = output_tensor.mean(dim=0)
     mean_output = mean_output.cuda()
     # print(mean_output.shape)        [trial_num]
 
     cc, rmse, mae = regression_metrics(all_label, mean_output)
-
     print('Dropout Avg: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
 
 

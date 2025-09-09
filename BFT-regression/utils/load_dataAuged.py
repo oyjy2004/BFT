@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/utils')
+sys.path.append('./utils')
 from augment import *
 import argparse
 from getdata import *
@@ -9,9 +9,10 @@ from EA import *
 class AugmentedDataset(torch.utils.data.Dataset):
     def __init__(self, data_root, subject_ids, aug_names):
         """
-        data_root: 增强数据保存的根目录（不包含 s0/s1...）
-        subject_ids: 所有被试的编号列表，如 [0, 1, ..., 9]
-        aug_names: 所有增强方法名，如 ['gaussian', 'permute', ...]
+        data_root: Root directory where the augmented data is stored 
+                   (excluding s0/s1/... subdirectories)
+        subject_ids: List of subject IDs, e.g., [0, 1, ..., 9]
+        aug_names: List of augmentation method names, e.g., ['gaussian', 'permute', ...]
         """
         self.aug_names = aug_names
         self.samples = []  # [(x1, y1), (x2, y2), ...]
@@ -20,7 +21,7 @@ class AugmentedDataset(torch.utils.data.Dataset):
             subject_dir = os.path.join(data_root, f"s{sid}")
             aug_data = [torch.load(os.path.join(subject_dir, f"{aug}.pt"), map_location='cpu') for aug in aug_names]
 
-            num_samples = aug_data[0]['data'].shape[0]  #
+            num_samples = aug_data[0]['data'].shape[0]  # number of samples
             for i in range(num_samples):
                 x_aug_list = []
                 for aug in aug_data:
@@ -74,15 +75,17 @@ if __name__ == '__main__':
                                   time_sample_num=time_sample_num, sample_rate=sample_rate,
                                   N=N, chn=chn,  paradigm=paradigm, data=data_name)
         
+        # get data
+        PATH_TO_DATA = "/PATH/TO/DATA/"
         if args.data == 'Driving':
-            eeg_path = "/mnt/data2/oyjy/Data/Driving/Driving_eeg_filter.pkl"
-            label_path = "/mnt/data2/oyjy/Data/Driving/Driving_labels.pkl"
+            eeg_path = PATH_TO_DATA + "Driving/Driving_eeg_filter.pkl"
+            label_path = PATH_TO_DATA + "Driving/Driving_labels.pkl"
         elif args.data == 'New_driving':
-            eeg_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_eeg.pkl"
-            label_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_label.pkl"
+            eeg_path = PATH_TO_DATA + "New_driving/NewDri_eeg.pkl"
+            label_path = PATH_TO_DATA + "New_driving/NewDri_label.pkl"
         elif args.data == 'Seed':
-            eeg_path = "/mnt/data2/oyjy/Data/SEED/SEED_eeg_f.pkl"
-            label_path = "/mnt/data2/oyjy/Data/SEED/SEED_labels.pkl"
+            eeg_path = PATH_TO_DATA + "SEED/SEED_eeg_f.pkl"
+            label_path = PATH_TO_DATA + "SEED/SEED_labels.pkl"
 
         EEG, LABEL = load_data(eeg_path, label_path, args)
 
@@ -95,7 +98,8 @@ if __name__ == '__main__':
             
             aug_list = generate_augmented_inputs(test_X, test_Y, args)
 
-            save_dir = '/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/augmented_data/'
+            PATH_TO_AUGED_DATA = '/PATH/TO/AUGED/DATA/'
+            save_dir = PATH_TO_AUGED_DATA
             save_aug_list(aug_list, save_dir=save_dir + data_name + '/s' + str(i), aug_names=aug_names)
 
-            # # data, label = load_aug("./augmented_data/seed_subject_0", "noise")
+            # data, label = load_aug("./augmented_data/seed_subject_0", "noise")

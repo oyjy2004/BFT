@@ -119,6 +119,9 @@ class EEGNet_Classifier(nn.Module):
         return self.classifier_block(x)
     
 
+PATH_EEGNET_MODEL = "/PATH/TO/SAVE/MODEL/"
+PATH_EEGNET_MODEL_NOAUG = "/PATH/TO/SAVE/MODEL/"
+
 def train_EEGNet(base_network, X_train, labels_train, X_test, labels_test, args):
     eeg_length = (round(args.time_sample_num/args.sample_rate) - 1) * args.sample_rate
     X_test = X_test[:, :, :eeg_length]
@@ -229,7 +232,7 @@ def train_EEGNet(base_network, X_train, labels_train, X_test, labels_test, args)
                           int(max_iter // len(loader_train)), 
                           acc, train_acc, epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet/SEED" + str(args.SEED) + "/EEGNet_pth/"
+            CHECKPOINT_DIR = PATH_EEGNET_MODEL + str(args.SEED) + "/EEGNet_pth/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.idt)
             os.makedirs(path, exist_ok=True)
             torch.save(base_network.state_dict(), 
@@ -336,7 +339,7 @@ def train_EEGNet_noaug(base_network, X_train, labels_train, X_test, labels_test,
                           int(max_iter // len(loader_train)), 
                           acc, train_acc, epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/classify_BFT/checkpoints/EEGNet_noaug/SEED" + str(args.SEED) + "/EEGNet_pth/"
+            CHECKPOINT_DIR = PATH_EEGNET_MODEL_NOAUG + str(args.SEED) + "/EEGNet_pth/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.idt)
             os.makedirs(path, exist_ok=True)
             torch.save(base_network.state_dict(), 

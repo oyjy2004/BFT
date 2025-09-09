@@ -15,11 +15,8 @@ from models.EEGNet import *
 
 
 def train_regression_model(base_model, regression_model, X_train, labels_train, args):
-    # eeg_length = (round(args.time_sample_num / args.sample_rate) - 1) * args.sample_rate
-    # X_train = X_train[:, :, :eeg_length]
     X_train = torch.tensor(X_train, dtype=torch.float32)
     labels_train = torch.tensor(labels_train, dtype=torch.float32)  
-    # X_train = X_train.unsqueeze(1)
     labels_train = labels_train.squeeze()
 
     data_train = torch.utils.data.TensorDataset(X_train, labels_train)
@@ -74,12 +71,13 @@ def train_regression_model(base_model, regression_model, X_train, labels_train, 
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_EEGNetBlock/"
+            PATH_TO_MODEL = '/PATH/TO/MODEL/'
+            CHECKPOINT_DIR = PATH_TO_MODEL + str(args.SEED) + "/EEGNet/New_EEGNetBlock/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(base_model.state_dict(), path + "/EEGNetBlock_epoch_" + str(iter_num) + ".pth")
             
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED44/EEGNet/New_Regression_head/"
+            CHECKPOINT_DIR = PATH_TO_MODEL + str(args.SEED) + "/EEGNet/New_Regression_head/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(regression_model.state_dict(), path + "/Regression_head_epoch_" + str(iter_num) + ".pth")
@@ -147,12 +145,13 @@ def train_regression_model_noaug(base_model, regression_model, X_train, labels_t
                           int(max_iter // len(loader_train)), 
                           epoch_loss_avg))
 
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED" + str(args.SEED) + "/EEGNet/New_EEGNetBlock_noaug/"
+            PATH_TO_MODEL_NO_AUG = '/PATH/TO/MODEL/'
+            CHECKPOINT_DIR = PATH_TO_MODEL_NO_AUG + str(args.SEED) + "/EEGNet/New_EEGNetBlock_noaug/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(base_model.state_dict(), path + "/EEGNetBlock_epoch_" + str(iter_num) + ".pth")
             
-            CHECKPOINT_DIR = "/mnt/data2/oyjy/test-time/test-time-aug/regression_BFT/checkpoints/SEED" + str(args.SEED) + "/EEGNet/New_Regression_head_noaug/"
+            CHECKPOINT_DIR = PATH_TO_MODEL_NO_AUG + str(args.SEED) + "/EEGNet/New_Regression_head_noaug/"
             path = CHECKPOINT_DIR + args.data + "/s" + str(args.testID)
             os.makedirs(path, exist_ok=True)
             torch.save(regression_model.state_dict(), path + "/Regression_head_epoch_" + str(iter_num) + ".pth")
@@ -165,8 +164,6 @@ def train_regression_model_noaug(base_model, regression_model, X_train, labels_t
 
 if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = '3, 4, 5, 6, 7'
-    # data_name_list = ['Driving', 'New_driving']
-    # data_name_list = ['Driving', 'Seed', 'New_driving']
     data_name_list = ['Driving', 'Seed']
 
     for data_name in data_name_list:
@@ -210,16 +207,16 @@ if __name__ == '__main__':
         args.data_env = 'gpu' if torch.cuda.device_count() != 0 else 'local'
 
         # get data
+        PATH_TO_DATA = "/PATH/TO/DATA/"
         if args.data == 'Driving':
-            eeg_path = "/mnt/data2/oyjy/Data/Driving/Driving_eeg_filter.pkl"
-            label_path = "/mnt/data2/oyjy/Data/Driving/Driving_labels.pkl"
+            eeg_path = PATH_TO_DATA + "Driving/Driving_eeg_filter.pkl"
+            label_path = PATH_TO_DATA + "Driving/Driving_labels.pkl"
         elif args.data == 'New_driving':
-            eeg_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_eeg.pkl"
-            label_path = "/mnt/data2/oyjy/Data/New_driving/NewDri_label.pkl"
+            eeg_path = PATH_TO_DATA + "New_driving/NewDri_eeg.pkl"
+            label_path = PATH_TO_DATA + "New_driving/NewDri_label.pkl"
         elif args.data == 'Seed':
-            eeg_path = "/mnt/data2/oyjy/Data/SEED/SEED_eeg_f.pkl"
-            label_path = "/mnt/data2/oyjy/Data/SEED/SEED_labels.pkl"
-
+            eeg_path = PATH_TO_DATA + "SEED/SEED_eeg_f.pkl"
+            label_path = PATH_TO_DATA + "SEED/SEED_labels.pkl"
         EEG, LABEL = load_data(eeg_path, label_path, args)
 
         for i in range(len(EEG)):
@@ -248,6 +245,6 @@ if __name__ == '__main__':
                 base_model.cuda()
                 regression_model.cuda()
 
-                # train_regression_model(base_model, regression_model, src_data, src_label, args)
-                train_regression_model_noaug(base_model, regression_model, src_data, src_label, args)
+                train_regression_model(base_model, regression_model, src_data, src_label, args)
+                # train_regression_model_noaug(base_model, regression_model, src_data, src_label, args)
             
