@@ -50,6 +50,7 @@ def test_BNadapt(base_model, regression_model, tar_data, tar_label, args, test_b
                 else:
                     all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
 
+                # update the mean and std
                 if aug_way == 'identity':
                     base_model.train()
                     regression_model.train()
@@ -146,7 +147,6 @@ def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, t
 
     model_loss.eval()
     iter_test = iter(loader_test)
-    # print(len(loader_test))
     with torch.no_grad():
         for i in range(len(loader_test)):
             base_model.eval()
@@ -163,6 +163,7 @@ def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, t
             x_aug_list = trans_traininputs
             labels = data[0][1].cuda()
 
+            # get the reliability of different transformation
             pred_losses = []
             for j in range(len(x_aug_list)):
                 x, _ = x_aug_list[j]
@@ -177,16 +178,15 @@ def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, t
             else:
                 all_pred_losses = torch.cat([all_pred_losses, pred_losses.unsqueeze(0)], dim=0)
 
+            # calculate results based on reliability
             predicted_probs = all_pred_losses.mean(dim=0)
             topk_values, topk_indices = torch.topk(predicted_probs, k=6, largest=True)
-            # print(topk_indices)
             the_output = []
             for k in topk_indices:
                 x, y = x_aug_list[k]
                 target_output = regression_model(base_model(x)).view(-1)
                 target_output = target_output.unsqueeze(0)
                 the_output.append(target_output)
-            # print(the_output)
             mean_output = torch.mean(torch.stack(the_output), dim=0)
 
             if i == 0:
@@ -196,6 +196,7 @@ def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, t
                 all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
                 all_label = torch.cat((all_label, labels.float()), 0)
 
+            # update the mean and std
             base_model.train()
             if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
                 batch_test = data_cum[i - test_batch + 1: i + 1]
@@ -206,10 +207,6 @@ def test_augment_with_loss(model_loss, base_model, regression_model, tar_data, t
         all_output = all_output.squeeze()
         all_output = all_output.cuda()
         all_label = all_label.cuda()
-        # print(all_label)
-        # print(all_output)
 
-        # print(all_output.shape)
-        # print(all_label.squeeze().shape)
         cc, rmse, mae = regression_metrics(all_label.squeeze(), all_output)
         print('BFT-A: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))

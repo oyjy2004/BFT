@@ -127,14 +127,10 @@ class SpearmanLoss(torch.nn.Module):
 
     def forward(self, mem_pred, mem_gt, pr=False):
         rank_gt = get_rank(mem_gt)
-        # print(rank_gt)
 
         rank_pred = self.sorter(mem_pred.unsqueeze(
             0)).view(-1)
-        # print(rank_pred)
 
-        # print(self.criterion_mse(rank_pred, rank_gt))
-        # print(self.criterionl1(mem_pred, mem_gt))
         loss  = self.lbd*self.criterion_mse(rank_pred, rank_gt) + (1 - self.lbd)*self.criterionl1(mem_pred, mem_gt)
         return loss
     

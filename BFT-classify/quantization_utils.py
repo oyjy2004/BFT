@@ -28,7 +28,7 @@ def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, lab
             if i == 0:    data_cum = inputs_c
             else:    data_cum = torch.cat((data_cum, inputs_c), 0)
             
-            ###################### augment ####################
+            ###################### get augmented data ####################
             inputs = inputs.detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
             start_time = time.time()
@@ -36,10 +36,11 @@ def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, lab
             end_time = time.time()
             augment_time.append(end_time - start_time)
             labels = torch.tensor(labels, dtype=torch.long)
-            ###################### augment ####################
-            ###################### forward ####################
+            ###################### get augmented data ####################
+            ###################### model forward phase ####################
             start_time = time.time()
             pred_losses = []
+            # get the reliability of different transformation
             for j in range(len(x_aug_list)):
                 x, _ = x_aug_list[j]
                 x = x.to(args.data_env)
@@ -58,6 +59,7 @@ def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, lab
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
 
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(len(x_aug_list)):
                 x, y = x_aug_list[k]
@@ -68,6 +70,7 @@ def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, lab
             mean_output = (torch.stack(the_output).squeeze(1) * predicted_probs.unsqueeze(1)) / predicted_probs.sum()
             mean_output = mean_output.sum(dim=0).unsqueeze(0)
 
+            # updatw the mean and std
             block_model.train()
             model_target.train()
             if (i + 1) >= test_batch:
@@ -77,10 +80,9 @@ def test_augment_with_loss_nq(model_loss, model_target, block_model, X_test, lab
                 _ = model_target(batch_test)
                 _ = block_model(batch_test)
                 
-
             end_time = time.time()
             forward_time.append(end_time - start_time)
-            ###################### forward ####################
+            ###################### model forward phase ####################
 
             if i == 0:
                 all_output = mean_output.float().cpu()
@@ -131,7 +133,6 @@ def test_dropout_with_loss_nq(model_loss, block_model, classifier, X_test, label
             start_time = time.time()
             pred_losses = []
             output1 = block_model(inputs)
-            # print(output1)
             B, D = output1.shape
             all_mask = []
             for (start_r, end_r), key in zip(drop_ranges, range_keys):
@@ -141,12 +142,11 @@ def test_dropout_with_loss_nq(model_loss, block_model, classifier, X_test, label
                 output1_mask[:, start:end] = 0.0
                 all_mask.append(output1_mask)
 
+                # get the reliability of different dropout
                 pred_losses.append(model_loss(output1_mask))
-            # dim = 10 
             pred_losses = torch.stack(pred_losses).squeeze()
             pred_losses = F.softmax(-pred_losses, dim=0)
 
-            # 10 * dim
             all_mask = torch.stack(all_mask).squeeze()
 
             if i == 0:
@@ -158,6 +158,7 @@ def test_dropout_with_loss_nq(model_loss, block_model, classifier, X_test, label
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
 
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(all_mask.shape[0]):
                 x = all_mask[k]
@@ -168,6 +169,7 @@ def test_dropout_with_loss_nq(model_loss, block_model, classifier, X_test, label
             mean_output = (torch.stack(the_output).squeeze(1) * predicted_probs.unsqueeze(1)) / predicted_probs.sum()
             mean_output = mean_output.sum(dim=0).unsqueeze(0)
 
+            # update the mean and std
             block_model.train()
             if (i + 1) >= test_batch:
                 batch_test = data_cum[i - test_batch + 1: i + 1]
@@ -311,7 +313,7 @@ def test_augment_with_loss_q(model_loss, block_model, classifier, X_test, labels
             if i == 0:    data_cum = inputs_c
             else:    data_cum = torch.cat((data_cum, inputs_c), 0)
             
-            ###################### augment ####################
+            ###################### get augmented data ####################
             inputs = inputs.detach().cpu().numpy()
             labels = labels.detach().cpu().numpy()
             start_time = time.time()
@@ -319,10 +321,11 @@ def test_augment_with_loss_q(model_loss, block_model, classifier, X_test, labels
             end_time = time.time()
             augment_time.append(end_time - start_time)
             labels = torch.tensor(labels, dtype=torch.long)
-            ###################### augment ####################
-            ###################### forward ####################
+            ###################### get augmented data ####################
+            ###################### model forward phase ####################
             start_time = time.time()
             pred_losses = []
+            # get the reliability of different transformation
             for j in range(len(x_aug_list)):
                 x, _ = x_aug_list[j]
                 x = x.cpu()
@@ -341,6 +344,7 @@ def test_augment_with_loss_q(model_loss, block_model, classifier, X_test, labels
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
 
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(len(x_aug_list)):
                 x, y = x_aug_list[k]
@@ -353,7 +357,7 @@ def test_augment_with_loss_q(model_loss, block_model, classifier, X_test, labels
 
             end_time = time.time()
             forward_time.append(end_time - start_time)
-            ###################### forward ####################
+            ###################### model forward phase ####################
 
             if i == 0:
                 all_output = mean_output.float().cpu()
@@ -407,7 +411,6 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
             start_time = time.time()
             pred_losses = []
             output1 = block_model(inputs)
-            # print(output1)
             B, D = output1.shape
             all_mask = []
             for (start_r, end_r), key in zip(drop_ranges, range_keys):
@@ -417,12 +420,11 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
                 output1_mask[:, start:end] = 0.0
                 all_mask.append(output1_mask)
 
+                # get the reliability of different dropout
                 pred_losses.append(model_loss(output1_mask))
-            # dim = 10 
             pred_losses = torch.stack(pred_losses).squeeze()
             pred_losses = F.softmax(-pred_losses, dim=0)
 
-            # 10 * dim
             all_mask = torch.stack(all_mask).squeeze()
 
             if i == 0:
@@ -434,6 +436,7 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
 
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(all_mask.shape[0]):
                 x = all_mask[k]
@@ -464,6 +467,9 @@ def test_dropout_with_loss_q(model_loss, block_model, classifier, X_test, labels
 
 
 def model_bytes(model: torch.nn.Module) -> int:
+    """
+    calculate the model size
+    """
     total = 0
     for p in model.parameters(recurse=True):
         if p is None:

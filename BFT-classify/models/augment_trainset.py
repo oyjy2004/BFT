@@ -98,7 +98,6 @@ augmentations = [
 
 def data_aug_random(data, last_data, labels, last_label, args):
     aug_fn = random.choice(augmentations)
-    # print(str(aug_fn))
     if aug_fn == identity_aug:
         aug_data, aug_labels = aug_fn(data, labels)
     elif aug_fn == CR_transform:

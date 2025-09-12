@@ -45,6 +45,7 @@ def test_dropout(base_model, regression_model, X_test, labels_test, args):
             if i == 0:  all_label = labels.float()
             else:       all_label = torch.cat((all_label, labels.float()), 0)
 
+            # get the features after dropout
             output1 = base_model(inputs)
             B, D = output1.shape
             for (start_r, end_r), key in zip(drop_ranges, range_keys):
@@ -65,10 +66,8 @@ def test_dropout(base_model, regression_model, X_test, labels_test, args):
         if key == range_keys[0]:    output_tensor = value_list.float().cpu().unsqueeze(0)
         else:   output_tensor = torch.cat((output_tensor, value_list.float().cpu().unsqueeze(0)), dim=0)
 
-    # print(output_tensor.shape)        [10, trial_num]
     mean_output = output_tensor.mean(dim=0)
     mean_output = mean_output.cuda()
-    # print(mean_output.shape)        [trial_num]
 
     cc, rmse, mae = regression_metrics(all_label, mean_output)
     print('Dropout Avg: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))
@@ -104,6 +103,7 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
             if i == 0:    data_cum = inputs
             else:    data_cum = torch.cat((data_cum, inputs), 0)
 
+            # get the features after dropout
             pred_losses = []
             output1 = base_model(inputs)
             B, D = output1.shape
@@ -115,15 +115,14 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
                 output1_mask[:, start:end] = 0.0
                 all_mask.append(output1_mask)
 
+                # get the reliability of different dropout
                 pred_losses.append(model_loss(output1_mask))
             
             pred_losses = torch.stack(pred_losses).squeeze()
-            # print(pred_losses.shape)      [10]
             pred_losses = F.softmax(-pred_losses, dim=0)
 
             # 10 * dim
             all_mask = torch.stack(all_mask).squeeze()
-            # print(all_mask.shape)      [10, 736]
 
             if i == 0:
                 all_pred_losses = pred_losses.unsqueeze(0)
@@ -131,9 +130,8 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
                 all_pred_losses = torch.cat([all_pred_losses, pred_losses.unsqueeze(0)], dim=0)
 
             predicted_probs = all_pred_losses.mean(dim=0)
-            # print(predicted_probs.shape)      [10]
-            # predicted_probs = pred_losses
 
+            # calculate results based on reliability
             topk_values, topk_indices = torch.topk(predicted_probs, k=5, largest=True)
             the_output = []
             for k in topk_indices:
@@ -143,7 +141,6 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
                 target_output = target_output.unsqueeze(0)
                 the_output.append(target_output)
             mean_output = torch.mean(torch.stack(the_output), dim=0)
-            # print(mean_output.shape)        [1, 1]
 
             if i == 0:
                 all_output = mean_output.float().cpu()
@@ -152,6 +149,7 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
                 all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
                 all_label = torch.cat((all_label, labels.float()), 0)
 
+            # update the mean and std
             base_model.train()
             if (i + 1) >= test_batch and (i + 1) % test_batch == 0:
                 batch_test = data_cum[i - test_batch + 1: i + 1]
@@ -163,7 +161,5 @@ def test_dropout_with_loss(model_loss, base_model, regression_model, X_test, lab
         all_output = all_output.cuda()
         all_label = all_label.cuda()
 
-        # print(all_output.shape)
-        # print(all_label.shape)
         cc, rmse, mae = regression_metrics(all_label, all_output)
         print('Dropout Avg: ' + 'CC = {:.4f}    RMSE = {:.4f}    MAE = {:.4f}'.format(cc, rmse, mae))

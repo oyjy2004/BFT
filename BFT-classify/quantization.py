@@ -14,7 +14,7 @@ import argparse
 from utils.EA import *
 from dropout import *
 from augment import *
-from quantization_about import *
+from quantization_utils import *
 from utils.data_utils import *
 from torch.quantization import QuantStub, DeQuantStub
 

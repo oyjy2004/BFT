@@ -11,8 +11,8 @@ from utils.fix_seed import *
 from models.Deformer import *
 from models.EEGNet import *
 from models.lossPredictor import *
-from augment_about import *
-from dropout_about import *
+from augment_utils import *
+from dropout_utils import *
 
 
 if __name__ == '__main__':
@@ -92,13 +92,13 @@ if __name__ == '__main__':
                 regression_model.load_state_dict(checkpoint)
                 regression_model = regression_model.cuda()
 
+                # get the results of different transformation
                 test_augment(base_model, regression_model, tar_data, tar_label, args)
+                # get the results of BN-adapt
                 test_BNadapt(base_model, regression_model, tar_data, tar_label, args)
                 checkpoint = torch.load(tar_model_dir_cc)
                 base_model.load_state_dict(checkpoint)
                 base_model = base_model.cuda()
-                test_dropout(base_model, regression_model, tar_data, tar_label, args)
-
 
                 F2 = 16
                 input_dim = F2 * (eeg_length // (4 * 8))
@@ -111,10 +111,13 @@ if __name__ == '__main__':
                 model_loss.load_state_dict(checkpoint)
                 model_loss = model_loss.cuda()
 
+                # get the results of BFT-A
                 test_augment_with_loss(model_loss, base_model, regression_model, tar_data, tar_label, args)
 
                 checkpoint = torch.load(tar_model_dir_cc)
                 base_model.load_state_dict(checkpoint)
                 base_model = base_model.cuda()
+                # get the results of MC dropout
                 test_dropout(base_model, regression_model, tar_data, tar_label, args)
+                # get the results of BFT-D
                 test_dropout_with_loss(model_loss, base_model, regression_model, tar_data, tar_label, args)

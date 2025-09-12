@@ -81,7 +81,9 @@ if __name__ == '__main__':
                 block_model = block_model.cuda()
                 classifier = classifier.cuda()
                 
+                # get accurancy of different transformation
                 test_augment(model_target, tar_data, tar_label, args)
+                # get accurancy of BN-adapt
                 test_BNadapt(model_target, tar_data, tar_label, args)
                 checkpoint = torch.load(tar_model_dir_cc)
                 model_target.load_state_dict(checkpoint)
@@ -100,6 +102,7 @@ if __name__ == '__main__':
                 model_loss.load_state_dict(checkpoint)
                 model_loss = model_loss.cuda()
 
+                # get accurancy of BFT-A
                 test_augment_with_loss(model_loss, model_target, block_model, tar_data, tar_label, args)
                 checkpoint = torch.load(tar_model_dir_cc)
                 model_target.load_state_dict(checkpoint)
@@ -109,5 +112,7 @@ if __name__ == '__main__':
                 classifier = EEGNet_Classifier(model_target.classifier_block)
                 block_model = block_model.cuda()
                 classifier = classifier.cuda()
+                # get accurancy of MC Dropout
                 test_dropout(block_model, classifier, tar_data, tar_label, args)
+                # get accurancy of BFT-D
                 test_dropout_with_loss(model_loss, block_model, classifier, tar_data, tar_label, args)

@@ -83,10 +83,7 @@ def learn_dropout_loss(model_loss, base_model, regression_model, X_train, labels
         # dim = 10
         real_losses = torch.tensor(dropout_loss_list)
         pred_losses = torch.stack(pred_losses).squeeze()
-        # print(pred_losses.shape)      [10, 32]
         pred_losses = pred_losses.mean(dim=1)   
-        # print(real_losses.shape)      [10]
-        # print(pred_losses.shape)      [10]
         relative_real_losses = F.softmax(-real_losses, dim=0)
         predicted_probs = F.softmax(-pred_losses, dim=0)
         relative_real_losses = relative_real_losses.cuda()
@@ -187,9 +184,7 @@ def learn_augment_loss(model_loss, base_model, regression_model, X_train, labels
             x = base_model(x)
             pred_losses.append(model_loss(x))
         pred_losses = torch.stack(pred_losses).squeeze()
-        # print(pred_losses.shape)
         pred_losses = pred_losses.mean(dim=1)   
-        # print(pred_losses.shape)
         predicted_probs = F.softmax(-pred_losses, dim=0)
 
         loss = criterion(predicted_probs, relative_real_losses)

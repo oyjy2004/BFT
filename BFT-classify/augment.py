@@ -241,28 +241,6 @@ def test_BNadapt(base_network, X_test, labels_test, args, test_batch=8):
         X_test_trans = np.transpose(X_test, (0, 2, 1))
         if aug_way == 'None':
             X_test, labels_test = identity_aug_for_tta(X_test, labels_test, args)
-        elif aug_way == 'mult_flag_0.9':
-            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=0.1)
-        elif aug_way == 'mult_flag_1.1':
-            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=-0.1)
-        elif aug_way == 'mult_flag_1.2':
-            X_test, labels_test = data_mult_f_for_tta(X_test_trans, labels_test, args, mult_mod=-0.2)
-        elif aug_way == 'noise_flag':
-            X_test, labels_test = data_noise_f_for_tta(X_test_trans, labels_test, args)
-        elif aug_way == 'high_freq_mod_flag':
-            X_test, labels_test = freq_mod_f_for_tta(X_test_trans, labels_test, args, flag='high')
-        elif aug_way == 'low_freq_mod_flag':
-            X_test, labels_test = freq_mod_f_for_tta(X_test_trans, labels_test, args, flag='low')
-        elif aug_way == 'slide_wds_flag_1':
-            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=1)
-        elif aug_way == 'slide_wds_flag_2':
-            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=2)
-        elif aug_way == 'slide_wds_flag_3':
-            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=3)
-        elif aug_way == 'slide_wds_flag_4':
-            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=4)
-        elif aug_way == 'slide_wds_flag_5':
-            X_test, labels_test = sliding_window_augmentation_for_tta(X_test, labels_test, args, no=5)
         
         data_test = torch.utils.data.TensorDataset(X_test, labels_test)
         loader_test = torch.utils.data.DataLoader(data_test, batch_size=1, 
@@ -283,7 +261,6 @@ def test_BNadapt(base_network, X_test, labels_test, args, test_batch=8):
                 if i == 0:  all_label = labels.float()
                 else:       all_label = torch.cat((all_label, labels.float()), 0)
 
-                # print(inputs.shape)
                 outputs = base_network(inputs)
 
                 if i == 0:
@@ -291,6 +268,7 @@ def test_BNadapt(base_network, X_test, labels_test, args, test_batch=8):
                 else:
                     all_output[aug_way] = torch.cat((all_output[aug_way], outputs.float().cpu()), 0)
 
+                # updata the mean and std 
                 if aug_way == 'None':
                     base_network.train()
                     if (i + 1) >= test_batch:
@@ -363,7 +341,6 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
                 if i == 0:  all_label = labels.float()
                 else:       all_label = torch.cat((all_label, labels.float()), 0)
 
-                # print(inputs.shape)
                 outputs = base_network(inputs)
 
                 if i == 0:
@@ -377,10 +354,8 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
 
         if aug_way == aug_dir[1]:
             output_tensor = this_outputs.float().cpu().unsqueeze(0)
-            # print(output_tensor.shape)
         elif aug_way != aug_dir[0]:
             output_tensor = torch.cat((output_tensor, this_outputs.float().cpu().unsqueeze(0)), dim=0)
-            # print(output_tensor.shape)
         
         _, predict = torch.max(this_outputs, 1)
         pred = torch.squeeze(predict).float()
@@ -389,7 +364,6 @@ def test_augment(base_network, X_test, labels_test, args, test_batch=8):
         print(aug_way + ': ' + 'Test Acc = {:.2f}'.format(acc))
 
     mean_output = output_tensor.mean(dim=0)
-    # print(mean_output.shape)
     _, predict = torch.max(mean_output, 1)
     pred = torch.squeeze(predict).float()
     true = all_label.cpu()
@@ -427,6 +401,7 @@ def test_augment_with_loss(model_loss, model_target, block_model, X_test, labels
             x_aug_list = generate_augmented_inputs(inputs, labels, args)
             labels = torch.tensor(labels, dtype=torch.long)
 
+            # get the reliability of different transformation
             pred_losses = []
             for j in range(len(x_aug_list)):
                 x, _ = x_aug_list[j]
@@ -444,7 +419,8 @@ def test_augment_with_loss(model_loss, model_target, block_model, X_test, labels
                 predicted_probs = all_pred_losses.mean(dim=0)
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
-
+            
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(len(x_aug_list)):
                 x, y = x_aug_list[k]
@@ -462,6 +438,7 @@ def test_augment_with_loss(model_loss, model_target, block_model, X_test, labels
                 all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
                 all_label = torch.cat((all_label, labels.float()), 0)
 
+            # update the mean and std
             model_target.train()
             block_model.train()
             if (i + 1) >= test_batch:

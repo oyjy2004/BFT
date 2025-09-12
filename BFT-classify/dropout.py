@@ -9,7 +9,6 @@ def test_dropout(block_model, classifier, X_test, labels_test, args):
     X_test = X_test[:, :, :eeg_length]
     X_test = torch.tensor(X_test, dtype=torch.float32)
     labels_test = torch.tensor(labels_test, dtype=torch.long)
-    # [trials, 1, channels, samples]
     X_test = X_test.unsqueeze(1)
     X_test, labels_test = X_test.cuda(), labels_test.cuda()
     
@@ -36,6 +35,7 @@ def test_dropout(block_model, classifier, X_test, labels_test, args):
             if i == 0:  all_label = labels.float()
             else:       all_label = torch.cat((all_label, labels.float()), 0)
 
+            # get the features after dropout
             output1 = block_model(inputs)
             B, D = output1.shape
             for (start_r, end_r), key in zip(drop_ranges, range_keys):
@@ -55,13 +55,10 @@ def test_dropout(block_model, classifier, X_test, labels_test, args):
         value_list = nn.Softmax(dim=1)(value_list)
         if key == range_keys[0]:
             output_tensor = value_list.float().cpu().unsqueeze(0)
-            # print(output_tensor.shape)
         else:
             output_tensor = torch.cat((output_tensor, value_list.float().cpu().unsqueeze(0)), dim=0)
-            # print(output_tensor.shape)
 
     mean_output = output_tensor.mean(dim=0)
-    # print(mean_output.shape)
     _, predict = torch.max(mean_output, 1)
     pred = torch.squeeze(predict).float()
     true = all_label.cpu()
@@ -74,7 +71,6 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
     X_test = X_test[:, :, :eeg_length]
     X_test = torch.tensor(X_test, dtype=torch.float32)
     labels_test = torch.tensor(labels_test, dtype=torch.long)
-    # [trials, 1, channels, samples]
     X_test = X_test.unsqueeze(1)
     X_test, labels_test = X_test.cuda(), labels_test.cuda()
     
@@ -100,7 +96,8 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
 
             if i == 0:    data_cum = inputs
             else:    data_cum = torch.cat((data_cum, inputs), 0)
-
+            
+            # get the features after dropout
             pred_losses = []
             output1 = block_model(inputs)
             B, D = output1.shape
@@ -112,12 +109,11 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
                 output1_mask[:, start:end] = 0.0
                 all_mask.append(output1_mask)
 
+                # get the reliability of different dropout
                 pred_losses.append(model_loss(output1_mask))
-            # dim = 10 
             pred_losses = torch.stack(pred_losses).squeeze()
             pred_losses = F.softmax(-pred_losses, dim=0)
 
-            # 10 * dim
             all_mask = torch.stack(all_mask).squeeze()
 
             if i == 0:
@@ -129,6 +125,7 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
             else:
                 predicted_probs = all_pred_losses.mean(dim=0)
 
+            # calculate weighted results based on reliability
             the_output = []
             for k in range(all_mask.shape[0]):
                 x = all_mask[k]
@@ -145,7 +142,8 @@ def test_dropout_with_loss(model_loss, block_model, classifier, X_test, labels_t
             else:
                 all_output = torch.cat((all_output, mean_output.float().cpu()), 0)
                 all_label = torch.cat((all_label, labels.float()), 0)
-
+            
+            # update the mean and std
             block_model.train()
             if (i + 1) >= test_batch:
                 batch_test = data_cum[i - test_batch + 1: i + 1]
